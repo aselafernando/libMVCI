@@ -1,4 +1,4 @@
-# libMVCI — an open J2534 driver for the FTDI "M-VCI" adapter
+# libMVCI — an open J2534 driver for the Mini-VCI USB adapter
 
 A clean, cross-platform implementation of the **SAE J2534 PassThru API** for the
 common FTDI FT232R–based *Mini‑VCI / "M‑VCI"* diagnostic cable, so the hardware
@@ -93,7 +93,7 @@ The wire protocol and frame format are specified in
 
 ## License
 
-Open source — recommended **MIT** (add a `LICENSE` file before publishing).
+[LICENSE.md](LICENSE.md)
 
 ## Disclaimer
 
