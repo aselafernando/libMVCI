@@ -1,0 +1,18 @@
+; J2534 exports for MVCI32.dll / MVCI64.dll
+; Undecorated names so apps resolve PassThru* regardless of x86 stdcall decoration.
+; (No LIBRARY statement — this .def is shared by both the 32- and 64-bit DLLs.)
+EXPORTS
+    PassThruOpen
+    PassThruClose
+    PassThruConnect
+    PassThruDisconnect
+    PassThruReadMsgs
+    PassThruWriteMsgs
+    PassThruStartPeriodicMsg
+    PassThruStopPeriodicMsg
+    PassThruStartMsgFilter
+    PassThruStopMsgFilter
+    PassThruSetProgrammingVoltage
+    PassThruReadVersion
+    PassThruGetLastError
+    PassThruIoctl
