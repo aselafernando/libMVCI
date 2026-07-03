@@ -73,7 +73,12 @@ static const char *default_port(void *pName)
 #else
     if (pName && *(const char *)pName) return (const char *)pName;
     const char *env = getenv("MVCI_PORT");
-    return env ? env : "/dev/ttyUSB0";
+    if (env) return env;
+  #ifdef __APPLE__
+    return "/dev/cu.usbserial";                      /* FTDI VCP node (macOS) */
+  #else
+    return "/dev/ttyUSB0";                           /* ftdi_sio node (Linux) */
+  #endif
 #endif
 }
 
