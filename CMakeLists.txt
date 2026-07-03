@@ -57,10 +57,29 @@ endif()
 # --------------------------------------------------------------------------
 if(WIN32)
     # x86 -> MVCI32, x64 -> MVCI64, matching the original driver naming.
+    # The architecture is whatever the active MSVC environment targets (it is
+    # fixed per build tree), so the two DLLs come from two separate configures.
     if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-        set_target_properties(MVCI PROPERTIES OUTPUT_NAME "MVCI64")
+        set(_mvci_arch "64")
     else()
-        set_target_properties(MVCI PROPERTIES OUTPUT_NAME "MVCI32")
+        set(_mvci_arch "32")
+    endif()
+    set_target_properties(MVCI PROPERTIES OUTPUT_NAME "MVCI${_mvci_arch}")
+
+    # The win32/win64 presets pass MVCI_EXPECT_ARCH so that running one from the
+    # wrong Native Tools prompt fails here instead of silently building the
+    # other architecture into the win32/win64 directory.
+    if(DEFINED MVCI_EXPECT_ARCH AND NOT MVCI_EXPECT_ARCH STREQUAL _mvci_arch)
+        if(MVCI_EXPECT_ARCH STREQUAL "32")
+            set(_mvci_prompt "x86")
+        else()
+            set(_mvci_prompt "x64")
+        endif()
+        message(FATAL_ERROR
+            "This preset targets ${MVCI_EXPECT_ARCH}-bit but the active MSVC "
+            "environment is ${_mvci_arch}-bit.\n"
+            "Open the \"${_mvci_prompt} Native Tools Command Prompt\" (or run "
+            "'vcvarsall ${_mvci_prompt}') and re-run the preset.")
     endif()
 
     # Undecorated J2534 exports (shared by the 32- and 64-bit DLLs).

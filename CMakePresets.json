@@ -1,0 +1,51 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "default",
+      "displayName": "Default (Linux/macOS)",
+      "description": "Uses the platform default generator. On Windows, prefer the win32/win64 presets from a Native Tools prompt.",
+      "binaryDir": "${sourceDir}/build/default",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    },
+    {
+      "name": "win64",
+      "displayName": "Windows x64 (MVCI64.dll)",
+      "description": "64-bit driver. In an IDE this selects the x64 MSVC environment; from a terminal, run in the 'x64 Native Tools Command Prompt' (or after 'vcvarsall x64').",
+      "generator": "NMake Makefiles",
+      "architecture": { "value": "x64", "strategy": "external" },
+      "toolset": { "value": "host=x64", "strategy": "external" },
+      "binaryDir": "${sourceDir}/build/win64",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "MVCI_EXPECT_ARCH": "64"
+      },
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
+    },
+    {
+      "name": "win32",
+      "displayName": "Windows x86 (MVCI32.dll)",
+      "description": "32-bit driver. In an IDE this selects the x86 MSVC environment; from a terminal, run in the 'x86 Native Tools Command Prompt' (or after 'vcvarsall x86').",
+      "generator": "NMake Makefiles",
+      "architecture": { "value": "x86", "strategy": "external" },
+      "toolset": { "value": "host=x64", "strategy": "external" },
+      "binaryDir": "${sourceDir}/build/win32",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "MVCI_EXPECT_ARCH": "32"
+      },
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
+    }
+  ],
+  "buildPresets": [
+    { "name": "default", "configurePreset": "default" },
+    { "name": "win64", "configurePreset": "win64" },
+    { "name": "win32", "configurePreset": "win32" }
+  ],
+  "testPresets": [
+    { "name": "default", "configurePreset": "default", "output": { "outputOnFailure": true } },
+    { "name": "win64", "configurePreset": "win64", "output": { "outputOnFailure": true } },
+    { "name": "win32", "configurePreset": "win32", "output": { "outputOnFailure": true } }
+  ]
+}
