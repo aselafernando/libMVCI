@@ -34,7 +34,14 @@ add_library(MVCI SHARED
     src/serial.c
     src/io.c
     src/des.c)
-add_library(MVCI::MVCI ALIAS MVCI)
+
+# Aliases consumers can link — identical names to the installed package, so a
+# vendored (add_subdirectory) and an installed (find_package) build are
+# interchangeable in target_link_libraries():
+#   libmvci           — plain name for add_subdirectory() consumers
+#   libMVCI::libmvci  — namespaced name that find_package(libmvci) also provides
+add_library(libmvci ALIAS MVCI)
+add_library(libMVCI::libmvci ALIAS MVCI)
 
 target_include_directories(MVCI
     PUBLIC
@@ -109,6 +116,7 @@ endif()
 
 set_target_properties(MVCI PROPERTIES
     C_VISIBILITY_PRESET hidden
+    EXPORT_NAME libmvci               # -> libMVCI::libmvci when exported
     VERSION   ${PROJECT_VERSION}
     SOVERSION ${PROJECT_VERSION_MAJOR})
 
@@ -139,14 +147,18 @@ if(MVCI_BUILD_TESTS)
 endif()
 
 # --------------------------------------------------------------------------
-# Install + export (so consumers can `find_package(MVCI)`)
+# Install + export: consumers use
+#   find_package(libmvci CONFIG REQUIRED)
+#   target_link_libraries(app PRIVATE libMVCI::libmvci)
 # --------------------------------------------------------------------------
 if(MVCI_INSTALL)
     include(GNUInstallDirs)
     include(CMakePackageConfigHelpers)
 
+    set(_mvci_cmakedir ${CMAKE_INSTALL_LIBDIR}/cmake/libmvci)
+
     install(TARGETS MVCI
-        EXPORT MVCITargets
+        EXPORT libmvciTargets
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
@@ -154,23 +166,23 @@ if(MVCI_INSTALL)
     install(DIRECTORY include/mvci
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
-    install(EXPORT MVCITargets
-        FILE MVCITargets.cmake
-        NAMESPACE MVCI::
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/MVCI)
+    install(EXPORT libmvciTargets
+        FILE libmvciTargets.cmake
+        NAMESPACE libMVCI::
+        DESTINATION ${_mvci_cmakedir})
 
     write_basic_package_version_file(
-        "${CMAKE_CURRENT_BINARY_DIR}/MVCIConfigVersion.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/libmvciConfigVersion.cmake"
         VERSION ${PROJECT_VERSION}
         COMPATIBILITY SameMajorVersion)
 
     configure_package_config_file(
-        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/MVCIConfig.cmake.in"
-        "${CMAKE_CURRENT_BINARY_DIR}/MVCIConfig.cmake"
-        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/MVCI)
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/libmvciConfig.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/libmvciConfig.cmake"
+        INSTALL_DESTINATION ${_mvci_cmakedir})
 
     install(FILES
-        "${CMAKE_CURRENT_BINARY_DIR}/MVCIConfig.cmake"
-        "${CMAKE_CURRENT_BINARY_DIR}/MVCIConfigVersion.cmake"
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/MVCI)
+        "${CMAKE_CURRENT_BINARY_DIR}/libmvciConfig.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/libmvciConfigVersion.cmake"
+        DESTINATION ${_mvci_cmakedir})
 endif()

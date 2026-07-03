@@ -1,14 +1,18 @@
 # libMVCI — an open J2534 driver for the Mini-VCI USB adapter
 
-A clean, cross-platform implementation of the **SAE J2534 PassThru API** for the
+Cross-platform implementation of the **SAE J2534 PassThru API** for the
 common FTDI FT232R–based *Mini‑VCI / "M‑VCI"* diagnostic cable, so the hardware
 you own can be used with standard J2534 diagnostic software — including on
-**Linux**, where no vendor driver exists.
+**Linux** and **macOS**, where no vendor driver exists.
 
 | Platform | Output | Serial backend | Crypto backend |
 |---|---|---|---|
-| Linux   | `lib/libMVCI.so` | termios (`/dev/ttyUSBx`) | OpenSSL libcrypto |
+| Linux   | `libMVCI.so` | termios (`/dev/ttyUSBx`) | OpenSSL libcrypto |
+| macOS   | `libMVCI.dylib` | termios (`/dev/cu.usbserial-*`) | CommonCrypto (system) |
 | Windows | `MVCI32.dll` (x86), `MVCI64.dll` (x64) | FTDI D2XX (`ftd2xx.dll`, loaded at runtime) | Windows CNG (BCrypt) |
+
+Built with CMake; the library lands in the build tree (e.g. `build/`). See
+**[BUILD.md](BUILD.md)**.
 
 ## Why this exists — interoperability
 
@@ -17,7 +21,7 @@ closed, Windows‑only J2534 DLL, which means owners of the hardware cannot use 
 with J2534 tools on Linux, nor with their own software, and have no documentation
 of how the device communicates.
 
-`libMVCI` is an independent, clean re‑implementation of the publicly‑observable
+`libMVCI` is an independent, re‑implementation of the publicly‑observable
 J2534 interface and the cable's serial wire protocol, written so that:
 
 - the same physical adapter works across operating systems (notably Linux);
@@ -26,8 +30,7 @@ J2534 interface and the cable's serial wire protocol, written so that:
 - the device's behaviour is documented and not locked to one vendor's binary.
 
 It contains **no vendor code** — only an original implementation that speaks the
-same wire protocol. The goal is compatibility with hardware you already own, not
-circumvention of any product or service.
+same wire protocol.
 
 ## Status
 
@@ -36,14 +39,15 @@ circumvention of any product or service.
   (live PID reads; works as a J2534 provider for Toyota Techstream over K‑line).
 - ⬜ **ISO15765 / CAN** — not yet implemented. CAN ECUs are not yet reachable.
 - The wire framing (DES‑based) and session handling are fully implemented and
-  identical across both platforms; only the protocol/transport/crypto *backends*
+  identical across all platforms; only the protocol/transport/crypto *backends*
   differ per OS, selected at compile time.
 
 ## Hardware
 
 FTDI FT232R, USB VID `0x0403` / PID `0x6001`, USB description **`M-VCI`**
 (115200 8N1). On Linux it enumerates through the kernel `ftdi_sio` driver as
-`/dev/ttyUSBx`; on Windows it is opened directly through `ftd2xx.dll`.
+`/dev/ttyUSBx`; on macOS through Apple's FTDI VCP driver as `/dev/cu.usbserial-*`;
+on Windows it is opened directly through `ftd2xx.dll`. No `libusb` dependency exists.
 
 ## Building
 
@@ -57,8 +61,27 @@ cmake --build build
 ctest --test-dir build            # codec self-test, no hardware needed
 ```
 
-Reuse it from another CMake project via `find_package(MVCI)` or
-`add_subdirectory()`, then link the `MVCI::MVCI` target.
+On Windows, build a specific architecture with the bundled presets (from the
+matching Native Tools Command Prompt, or by selecting the preset in your IDE):
+
+```bat
+cmake --preset win64   &&  cmake --build --preset win64   :: MVCI64.dll
+cmake --preset win32   &&  cmake --build --preset win32   :: MVCI32.dll
+```
+
+Reuse it from another CMake project — either vendored:
+
+```cmake
+add_subdirectory(external/libmvci)
+target_link_libraries(your_target PRIVATE libmvci)
+```
+
+or installed:
+
+```cmake
+find_package(libmvci CONFIG REQUIRED)
+target_link_libraries(your_target PRIVATE libMVCI::libmvci)
+```
 
 ## Using it
 
@@ -80,11 +103,14 @@ PIDs).
 ## Layout
 
 ```
-include/mvci/   public headers      ->  #include <mvci/j2534.h>, <mvci/serial.h>
-src/            sources + private headers (io.h, compat.h, mvci.def)
-test/           mvci_test.c — cross-platform self-test + live harness
-docs/           protocol specification (PROTOCOL.md)
-lib/            build output
+include/mvci/    public headers      ->  #include <mvci/j2534.h>, <mvci/serial.h>
+src/             sources + private headers (io.h, compat.h, mvci.def)
+test/            mvci_test.c — cross-platform self-test + live harness
+docs/            protocol specification (PROTOCOL.md)
+cmake/           package-config template (libmvciConfig.cmake.in)
+CMakeLists.txt   cross-platform build
+CMakePresets.json  win32/win64 + default build presets
+build/           build output (generated)
 ```
 
 ## Documentation
