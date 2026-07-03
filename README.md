@@ -47,19 +47,18 @@ FTDI FT232R, USB VID `0x0403` / PID `0x6001`, USB description **`M-VCI`**
 
 ## Building
 
-See **[BUILD.md](BUILD.md)**.
+CMake is the cross-platform build (Linux, macOS, Windows). See
+**[BUILD.md](BUILD.md)** for per-platform notes and how to consume MVCI from
+another CMake project.
 
 ```sh
-# Linux
-sudo apt install build-essential libssl-dev
-make                 # -> lib/libMVCI.so  (+ mvci_test)
-./mvci_test          # codec self-test, no hardware needed
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+ctest --test-dir build            # codec self-test, no hardware needed
 ```
 
-```bat
-:: Windows — open MVCI.sln in Visual Studio, Build Solution
-::   -> lib\Release\MVCI32.dll / MVCI64.dll      (no FTDI SDK needed)
-```
+Reuse it from another CMake project via `find_package(MVCI)` or
+`add_subdirectory()`, then link the `MVCI::MVCI` target.
 
 ## Using it
 
@@ -71,6 +70,8 @@ application can load it.
 - **Linux:** load `libMVCI.so`. Tell it which serial node to use via the
   `pName` argument to `PassThruOpen`, or the `MVCI_PORT` environment variable
   (default `/dev/ttyUSB0`). Add yourself to the `dialout` group for port access.
+- **macOS:** load `libMVCI.dylib`. Same as Linux, but the FTDI VCP node is
+  `/dev/cu.usbserial-*` (`MVCI_PORT` default `/dev/cu.usbserial`).
 
 The MVCI session layer can also be used directly via `#include <mvci/serial.h>`
 (see `test/mvci_test.c` for an example: handshake → connect → fast‑init → read

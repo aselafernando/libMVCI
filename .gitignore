@@ -1,8 +1,14 @@
+# NOTE: git does not honour trailing "# ..." comments on a pattern line — the
+# text becomes part of the pattern. Keep every comment on its own line.
+
 # ---- build output ----
-/lib/            # libMVCI.so, MVCI32.dll, MVCI64.dll
-/bin/            # mvci_test.exe
-/obj/            # MSVC intermediates
-/mvci_test       # Linux test binary
+# CMake build tree
+/build/
+# VS "Open Folder" default CMake build tree
+/out/
+# stray artifacts if built in-tree
+/lib/
+/mvci_test
 *.o
 *.obj
 *.so
@@ -13,19 +19,11 @@
 *.exp
 *.pdb
 *.ilk
+CMakeUserPresets.json
 
-# ---- Visual Studio per-user / cache (never commit) ----
-*.user           # *.vcxproj.user
+# ---- editor / IDE cache (never commit) ----
 .vs/
-*.suo
-*.sdf
-*.opensdf
-*.VC.db
-*.VC.opendb
-ipch/
-
-# ---- local machine config ----
-Directory.Build.props   # holds a machine-specific FTD2XX_DIR path (now unused)
+*.user
 
 # ---- reverse-engineering material (kept out of the public repo) ----
 /reverse_engineering/

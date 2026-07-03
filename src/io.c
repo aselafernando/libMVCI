@@ -1,12 +1,17 @@
-/* mvci_io.c — transport: termios (Linux) or FTDI D2XX (Windows). */
+/* mvci_io.c — transport: termios (Linux/macOS) or FTDI D2XX (Windows). */
 
-/* termios cfmakeraw + POSIX clock/nanosleep (the Makefile also sets these;
- * guarded so a standalone compile still works without warnings). */
+/* termios cfmakeraw + POSIX clock/nanosleep — defined here so the transport
+ * compiles standalone (no reliance on build-system -D flags), no warnings. */
 #ifndef _DEFAULT_SOURCE
 #define _DEFAULT_SOURCE 1
 #endif
 #ifndef _POSIX_C_SOURCE
 #define _POSIX_C_SOURCE 200809L
+#endif
+/* On macOS, cfmakeraw()/cfsetspeed() and the TIOCM* ioctls are only exposed
+ * under the Darwin extensions (otherwise hidden by _POSIX_C_SOURCE above). */
+#ifndef _DARWIN_C_SOURCE
+#define _DARWIN_C_SOURCE 1
 #endif
 
 #include "io.h"
@@ -150,7 +155,7 @@ void mvci_io_purge_rx(mvci_io_t *io)
 
 /* ====================================================================== */
 #else
-/* ----------------------------- Linux: termios ------------------------ */
+/* ------------------------- Linux / macOS: termios -------------------- */
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>

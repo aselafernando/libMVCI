@@ -1,74 +1,110 @@
 # Building the MVCI J2534 driver
 
-A single codebase produces the J2534 PassThru library on both platforms:
+A single codebase produces the J2534 PassThru library on all three platforms:
 
-| Platform | Output (in `lib/`) | Serial backend      | DES backend     |
-|----------|--------------------|---------------------|-----------------|
-| Linux    | `lib/libMVCI.so`   | termios (`/dev/ttyUSBx`) | OpenSSL libcrypto |
+| Platform | Output              | Serial backend      | DES backend     |
+|----------|---------------------|---------------------|-----------------|
+| Linux    | `libMVCI.so`        | termios (`/dev/ttyUSBx`) | OpenSSL libcrypto |
+| macOS    | `libMVCI.dylib`     | termios (`/dev/cu.usbserial*`) | CommonCrypto (system) |
 | Windows  | `MVCI32.dll` (x86) / `MVCI64.dll` (x64) | FTDI D2XX (`ftd2xx.dll`) | Windows CNG (BCrypt) |
+
+CMake is the single build system for every platform (Linux, macOS, Windows).
 
 ### Layout
 ```
 include/mvci/   public headers      -> #include <mvci/j2534.h>, <mvci/serial.h>
 src/            sources + private headers (io.h, compat.h, mvci.def)
 test/           mvci_test.c (verification harness)
-lib/            built library
+cmake/          MVCIConfig.cmake.in (package config template)
+CMakeLists.txt  cross-platform build
 ```
 Shared source: `src/passthru.c` (J2534 API), `src/serial.c` (protocol/session),
 `src/io.c` (transport, `#ifdef`-selected), `src/des.c` (DES, `#ifdef`-selected).
 
 ---
 
-## Linux (make)
+## CMake (all platforms)
 
-Requires `gcc`, OpenSSL headers (`libssl-dev`), and pthreads.
+Requires CMake ≥ 3.15 and a C11 compiler. On Linux you also need OpenSSL headers
+(`libssl-dev`); macOS and Windows use the OS-provided crypto, so there is no
+external crypto dependency there.
 
 ```sh
-sudo apt install build-essential libssl-dev
-make                 # builds lib/libMVCI.so and mvci_test
-make test            # runs the codec self-test (no hardware)
-sudo ./mvci_test /dev/ttyUSB0   # live test on the adapter
-sudo make install    # installs lib/libMVCI.so + headers under /usr/local
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+ctest --test-dir build            # runs the hardware-free codec self-test
 ```
 
-The adapter enumerates via the kernel `ftdi_sio` driver as `/dev/ttyUSBx`.
-A J2534 client tells the library which node to use by either:
-- passing the path as `pName` to `PassThruOpen`, or
-- setting the `MVCI_PORT` environment variable (default `/dev/ttyUSB0`).
+Outputs land in `build/` (multi-config generators like Visual Studio put them in
+`build/Release/`): the driver library and `mvci_test`. Run a live test by passing
+a port to the test binary, e.g. `./build/mvci_test /dev/cu.usbserial-XXXX` (macOS)
+or `build\Release\mvci_test.exe M-VCI` (Windows).
 
-Ensure the user can access the port (e.g. `sudo usermod -aG dialout $USER`).
+Options:
+- `-DMVCI_BUILD_TESTS=OFF` — skip the self-test target.
+- `-DMVCI_INSTALL=OFF` — skip install/export rules.
 
-## Windows (Visual Studio)
+Both default **ON** for a standalone build and **OFF** when MVCI is pulled in via
+`add_subdirectory()`.
 
-Requires only Visual Studio 2022 (v143/v145 toolset; retarget if older).
-**No FTDI SDK is needed to build** — `ftd2xx.dll` is loaded at runtime via
-`LoadLibrary`, so there is no `ftd2xx.h`/`ftd2xx.lib` dependency and no
-`FTD2XX_DIR` to set. (`Directory.Build.props` is therefore unused and can be
-deleted.) `bcrypt.lib` is a standard Windows system library and links
-automatically. The only runtime requirement is the installed **FTDI D2XX
-driver** (which provides `ftd2xx.dll`):
-<https://ftdichip.com/drivers/d2xx-drivers/>.
+### Including MVCI in another CMake project
 
-1. Open `MVCI.sln` (two projects: **MVCI** = the DLL, **mvci_test** = the
-   verification EXE), pick a configuration:
-   - **Release | Win32** → `lib\Release\MVCI32.dll`
-   - **Release | x64**   → `lib\Release\MVCI64.dll`
-   The test EXE builds to `bin\<platform>\Release\mvci_test.exe`.
-3. Build Solution.
-
-Verify with the same test program used on Linux (it's one cross-platform
-source — the platform backends are selected at compile time):
-
-```bat
-bin\x64\Release\mvci_test.exe            :: codec self-test, no hardware
-bin\x64\Release\mvci_test.exe M-VCI      :: live handshake + OBD on the adapter
+**Vendored (subdirectory):**
+```cmake
+add_subdirectory(third_party/libMVCI)
+target_link_libraries(my_app PRIVATE MVCI::MVCI)
 ```
 
-DES uses the OS crypto (`bcrypt.lib`, linked automatically) — no OpenSSL needed
-on Windows. The DLL opens the adapter through `ftd2xx.dll` by its USB
-description `"M-VCI"`, so the FTDI D2XX runtime must be installed (it ships with
-the FTDI driver). The exports are undecorated (see `mvci.def`) so any J2534
-client resolves `PassThruOpen` etc. on both x86 and x64.
+**Installed (find_package):**
+```sh
+cmake --install build --prefix /your/prefix
+```
+```cmake
+find_package(MVCI REQUIRED)          # add /your/prefix to CMAKE_PREFIX_PATH
+target_link_libraries(my_app PRIVATE MVCI::MVCI)
+```
+
+Either way the consumer links the imported target `MVCI::MVCI`, which carries the
+public include path and the platform crypto/thread dependencies automatically.
+The consumable ABI is the J2534 `PassThru*` API (`#include <mvci/j2534.h>`); the
+`serial.h` codec helpers are internal and are not exported from the shared
+library.
+
+---
+
+## Per-platform notes
+
+All three platforms build with the CMake steps above; what differs is the
+runtime dependency and how the adapter enumerates.
+
+### Linux
+
+Needs OpenSSL headers (`sudo apt install libssl-dev`) plus a C11 compiler; DES
+uses `libcrypto`. The adapter enumerates via the kernel `ftdi_sio` driver as
+`/dev/ttyUSBx`. Tell the library which node to use with the `pName` argument to
+`PassThruOpen` or the `MVCI_PORT` env var (default `/dev/ttyUSB0`), and ensure
+port access (e.g. `sudo usermod -aG dialout $USER`). Live test:
+`sudo ./build/mvci_test /dev/ttyUSB0`.
+
+### macOS
+
+No external dependency — DES runs through the system **CommonCrypto** framework
+(part of `libSystem`). The adapter enumerates through Apple's built-in FTDI VCP
+driver as `/dev/cu.usbserial-*` (or `/dev/tty.usbserial-*`); because the suffix
+is device-specific, pass it via `pName` or `MVCI_PORT` (default
+`/dev/cu.usbserial`). List candidates with `ls /dev/cu.usbserial-*`. Live test:
+`./build/mvci_test /dev/cu.usbserial-XXXX`.
+
+### Windows
+
+No external dependency and **no FTDI SDK to build** — `bcrypt.lib` (DES) links
+automatically, and `ftd2xx.dll` is loaded at runtime via `LoadLibrary` (no
+`ftd2xx.h`/`ftd2xx.lib`). The only runtime requirement is the installed **FTDI
+D2XX driver** (ships `ftd2xx.dll`): <https://ftdichip.com/drivers/d2xx-drivers/>.
+CMake produces `MVCI32.dll` (x86) or `MVCI64.dll` (x64) with undecorated exports
+(see `src/mvci.def`) so any J2534 client resolves `PassThruOpen` etc. on both
+architectures. The DLL opens the adapter by its USB description `"M-VCI"`. Live
+test: `build\Release\mvci_test.exe M-VCI`.
 
 > The default Windows COM-port / VCP driver is **not** used — the DLL talks to
 > the FTDI chip directly via D2XX, matching the original MVCI32.dll.

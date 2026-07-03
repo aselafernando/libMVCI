@@ -1,6 +1,8 @@
 /* mvci_des.c — DES-ECB backend.
  *
  *   Linux  : OpenSSL libcrypto (DES_ecb_encrypt)
+ *   macOS  : CommonCrypto (CCCrypt, kCCAlgorithmDES) — built into the OS,
+ *            no external dependency.
  *   Windows: CNG / BCrypt (BCRYPT_DES_ALGORITHM, ECB) — built into Windows,
  *            no external dependency.
  *
@@ -69,6 +71,27 @@ void mvci_des_encrypt(const uint8_t key[8], uint8_t *buf, size_t nblocks)
 
 void mvci_des_decrypt(const uint8_t key[8], uint8_t *buf, size_t nblocks)
 { des_run(key, buf, nblocks, 0); }
+
+/* ====================================================================== */
+#elif defined(__APPLE__)
+/* ---------------------------- macOS CommonCrypto --------------------- */
+#include <CommonCrypto/CommonCryptor.h>
+
+/* ECB, no padding. CommonCrypto processes the whole buffer in one call and
+ * tolerates in-place operation (dataOut == dataIn) for the one-shot CCCrypt. */
+static void des_run(const uint8_t key[8], uint8_t *buf, size_t nblocks, CCOperation op)
+{
+    if (nblocks == 0) return;
+    size_t len = nblocks * 8, moved = 0;
+    CCCrypt(op, kCCAlgorithmDES, kCCOptionECBMode,
+            key, kCCKeySizeDES, NULL, buf, len, buf, len, &moved);
+}
+
+void mvci_des_encrypt(const uint8_t key[8], uint8_t *buf, size_t nblocks)
+{ des_run(key, buf, nblocks, kCCEncrypt); }
+
+void mvci_des_decrypt(const uint8_t key[8], uint8_t *buf, size_t nblocks)
+{ des_run(key, buf, nblocks, kCCDecrypt); }
 
 /* ====================================================================== */
 #else

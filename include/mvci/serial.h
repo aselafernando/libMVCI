@@ -1,8 +1,8 @@
 /* MVCI wire protocol — DES-ECB based, fully reverse engineered.
  *
- * Transport is abstracted (see mvci_io.h): Linux uses termios on /dev/ttyUSBx,
- * Windows uses FTDI D2XX by description "M-VCI".  DES is abstracted too
- * (mvci_des.c): OpenSSL on Linux, CNG/BCrypt on Windows.
+ * Transport is abstracted (see mvci_io.h): Linux/macOS use termios on a serial
+ * node, Windows uses FTDI D2XX by description "M-VCI".  DES is abstracted too
+ * (mvci_des.c): OpenSSL on Linux, CommonCrypto on macOS, CNG/BCrypt on Windows.
  *
  * -----------------------------------------------------------------------
  * Frame:   [LEN][0x00][PAYLOAD : LEN-3 bytes][XORSUM]

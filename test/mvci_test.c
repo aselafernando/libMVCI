@@ -1,12 +1,13 @@
 /* mvci_test.c — cross-platform verification of the MVCI driver.
  *
- * Same source on Linux and Windows: it calls the mvci_serial session API, which
- * sits above the platform backends (termios/OpenSSL vs FTDI-D2XX/BCrypt), so one
- * test program covers both. Build it with the Makefile (Linux) or the mvci_test
- * project in MVCI.sln (Windows).
+ * Same source on Linux, macOS and Windows: it calls the mvci_serial session API,
+ * which sits above the platform backends (termios/OpenSSL, termios/CommonCrypto,
+ * or FTDI-D2XX/BCrypt), so one test program covers all three. It is built by the
+ * CMake `mvci_test` target (see CMakeLists.txt).
  *
  * Run (self-test only, no hardware):   mvci_test
  * Run (also do a live session):        Linux:   ./mvci_test /dev/ttyUSB0
+ *                                      macOS:   ./mvci_test /dev/cu.usbserial-XXXX
  *                                      Windows: mvci_test.exe M-VCI
  *
  * The self-test vectors are real bytes captured from MVCI32.dll, so a pass means
