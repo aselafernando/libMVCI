@@ -15,8 +15,9 @@ CMake is the single build system for every platform (Linux, macOS, Windows).
 include/mvci/   public headers      -> #include <mvci/j2534.h>, <mvci/serial.h>
 src/            sources + private headers (io.h, compat.h, mvci.def)
 test/           mvci_test.c (verification harness)
-cmake/          MVCIConfig.cmake.in (package config template)
+cmake/          libmvciConfig.cmake.in (package config template)
 CMakeLists.txt  cross-platform build
+CMakePresets.json  win32/win64 + default build presets
 ```
 Shared source: `src/passthru.c` (J2534 API), `src/serial.c` (protocol/session),
 `src/io.c` (transport, `#ifdef`-selected), `src/des.c` (DES, `#ifdef`-selected).
@@ -88,8 +89,8 @@ The `default` preset uses the platform's default generator for Linux/macOS.
 
 **Vendored (subdirectory):**
 ```cmake
-add_subdirectory(third_party/libMVCI)
-target_link_libraries(my_app PRIVATE MVCI::MVCI)
+add_subdirectory(external/libmvci)
+target_link_libraries(my_app PRIVATE libmvci)   # or libMVCI::libmvci
 ```
 
 **Installed (find_package):**
@@ -97,15 +98,26 @@ target_link_libraries(my_app PRIVATE MVCI::MVCI)
 cmake --install build --prefix /your/prefix
 ```
 ```cmake
-find_package(MVCI REQUIRED)          # add /your/prefix to CMAKE_PREFIX_PATH
-target_link_libraries(my_app PRIVATE MVCI::MVCI)
+find_package(libmvci CONFIG REQUIRED)   # add /your/prefix to CMAKE_PREFIX_PATH
+target_link_libraries(my_app PRIVATE libMVCI::libmvci)
 ```
 
-Either way the consumer links the imported target `MVCI::MVCI`, which carries the
-public include path and the platform crypto/thread dependencies automatically.
-The consumable ABI is the J2534 `PassThru*` API (`#include <mvci/j2534.h>`); the
-`serial.h` codec helpers are internal and are not exported from the shared
-library.
+The subdirectory build exposes the same target names the installed package does —
+the plain **`libmvci`** and the namespaced **`libMVCI::libmvci`** — so you can
+switch between vendored and installed without changing `target_link_libraries`.
+Either carries the public include path and the platform crypto/thread
+dependencies automatically. The consumable ABI is the J2534 `PassThru*` API
+(`#include <mvci/j2534.h>`); the `serial.h` codec helpers are internal and are
+not exported from the shared library.
+
+Since the library is a shared object, on Windows make sure the built DLL is
+alongside your executable at run time, e.g.:
+```cmake
+add_custom_command(TARGET my_app POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:my_app> $<TARGET_FILE_DIR:my_app>
+    COMMAND_EXPAND_LISTS)
+```
 
 ---
 
