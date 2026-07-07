@@ -109,7 +109,7 @@ void mvci_des_encrypt(const uint8_t key[8], uint8_t *buf, size_t nblocks)
 {
     DES_cblock k;
     DES_key_schedule ks;
-    memcpy(k, key, 8);
+    memcpy(&k, key, 8);
     DES_set_key_unchecked(&k, &ks);
     for (size_t i = 0; i < nblocks; i++)
         DES_ecb_encrypt((DES_cblock *)(buf + i * 8),
@@ -120,7 +120,7 @@ void mvci_des_decrypt(const uint8_t key[8], uint8_t *buf, size_t nblocks)
 {
     DES_cblock k;
     DES_key_schedule ks;
-    memcpy(k, key, 8);
+    memcpy(&k, key, 8);
     DES_set_key_unchecked(&k, &ks);
     for (size_t i = 0; i < nblocks; i++)
         DES_ecb_encrypt((DES_cblock *)(buf + i * 8),
