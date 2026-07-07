@@ -1,0 +1,9 @@
+@PACKAGE_INIT@
+
+# libmvci ships as a shared library; its OpenSSL / Threads / libusb dependencies
+# are PRIVATE (baked into the .so/.dylib/.dll), so consumers need not re-find
+# them here. The imported target below carries the public include path and the
+# J2534 PassThru* ABI.
+include("${CMAKE_CURRENT_LIST_DIR}/libmvciTargets.cmake")
+
+check_required_components(libmvci)
