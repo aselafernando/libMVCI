@@ -3,13 +3,20 @@
 Cross-platform implementation of the **SAE J2534 PassThru API** for the
 common FTDI FT232R–based *Mini‑VCI / "M‑VCI"* diagnostic cable, so the hardware
 you own can be used with standard J2534 diagnostic software — including on
-**Linux** and **macOS**, where no vendor driver exists.
+**Linux**, **macOS**, and **Android**, where no vendor driver exists.
 
 | Platform | Output | Serial backend | Crypto backend |
 |---|---|---|---|
 | Linux   | `libMVCI.so` | termios (`/dev/ttyUSBx`) | OpenSSL libcrypto |
 | macOS   | `libMVCI.dylib` | termios (`/dev/cu.usbserial-*`) | CommonCrypto (system) |
 | Windows | `MVCI32.dll` (x86), `MVCI64.dll` (x64) | FTDI D2XX (`ftd2xx.dll`, loaded at runtime) | Windows CNG (BCrypt) |
+| Android / driverless Linux | `libMVCI.so` | FTDI over **libusb** (`-DMVCI_TRANSPORT=libusb`) | OpenSSL libcrypto |
+
+The Unix serial backend is selectable at build time: **termios** (the default,
+using the kernel `ftdi_sio` VCP driver) or **libusb** (`-DMVCI_TRANSPORT=libusb`),
+which drives the FTDI chip directly. The libusb backend is the path for
+**Android**, whose stock kernels have libusb-capable USB host support but not
+`ftdi_sio`.
 
 Built with CMake; the library lands in the build tree (e.g. `build/`). See
 **[BUILD.md](BUILD.md)**.
@@ -45,9 +52,14 @@ same wire protocol.
 ## Hardware
 
 FTDI FT232R, USB VID `0x0403` / PID `0x6001`, USB description **`M-VCI`**
-(115200 8N1). On Linux it enumerates through the kernel `ftdi_sio` driver as
-`/dev/ttyUSBx`; on macOS through Apple's FTDI VCP driver as `/dev/cu.usbserial-*`;
-on Windows it is opened directly through `ftd2xx.dll`. No `libusb` dependency exists.
+(115200 8N1). How it enumerates depends on the backend:
+
+- **Linux (termios, default)** — kernel `ftdi_sio` driver as `/dev/ttyUSBx`.
+- **macOS** — Apple's FTDI VCP driver as `/dev/cu.usbserial-*`.
+- **Windows** — opened directly through `ftd2xx.dll`.
+- **libusb backend** — opened directly over libusb-1.0, needing no VCP driver
+  or `/dev/tty*` node. This requires libusb-1.0 at build time (`libusb-1.0-0-dev`
+  on Debian — **not** the legacy `libusb-dev`, which is libusb-0.1).
 
 ## Building
 
@@ -59,6 +71,14 @@ another CMake project.
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ctest --test-dir build            # codec self-test, no hardware needed
+```
+
+To build the libusb backend instead of termios (e.g. for Android or a Linux
+host without `ftdi_sio`), add `-DMVCI_TRANSPORT=libusb` (needs `libusb-1.0-0-dev`):
+
+```sh
+cmake -S . -B build -DMVCI_TRANSPORT=libusb
+cmake --build build
 ```
 
 On Windows, build a specific architecture with the bundled presets (from the
@@ -95,6 +115,15 @@ application can load it.
   (default `/dev/ttyUSB0`). Add yourself to the `dialout` group for port access.
 - **macOS:** load `libMVCI.dylib`. Same as Linux, but the FTDI VCP node is
   `/dev/cu.usbserial-*` (`MVCI_PORT` default `/dev/cu.usbserial`).
+- **libusb backend (Android / driverless Linux):** load `libMVCI.so`. The
+  `pName`/`MVCI_PORT` value selects the device instead of a tty node:
+  - `fd:<n>` — wrap an already-open descriptor. **This is the non-rooted
+    Android path**: the Java `UsbManager` grants permission and
+    `UsbDeviceConnection.getFileDescriptor()` yields `<n>`, which you pass in.
+  - `<vid>:<pid>` — open by hex VID:PID, e.g. `0403:6001` (rooted / desktop).
+  - empty / `M-VCI` / a name — scan FTDI devices, preferring the matching USB
+    product string (default `M-VCI`). Requires bus enumeration, so it does not
+    work on stock non-rooted Android — use `fd:<n>` there.
 
 The MVCI session layer can also be used directly via `#include <mvci/serial.h>`
 (see `test/mvci_test.c` for an example: handshake → connect → fast‑init → read
