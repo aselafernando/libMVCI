@@ -7,6 +7,7 @@ A single codebase produces the J2534 PassThru library on all three platforms:
 | Linux    | `libMVCI.so`        | termios (`/dev/ttyUSBx`) | OpenSSL libcrypto |
 | macOS    | `libMVCI.dylib`     | termios (`/dev/cu.usbserial*`) | CommonCrypto (system) |
 | Windows  | `MVCI32.dll` (x86) / `MVCI64.dll` (x64) | FTDI D2XX (`ftd2xx.dll`) | Windows CNG (BCrypt) |
+| Android / driverless Linux | `libMVCI.so` | FTDI over **libusb** (`-DMVCI_TRANSPORT=libusb`) | OpenSSL libcrypto |
 
 CMake is the single build system for every platform (Linux, macOS, Windows).
 
@@ -44,9 +45,13 @@ or `build\Release\mvci_test.exe M-VCI` (Windows).
 Options:
 - `-DMVCI_BUILD_TESTS=OFF` — skip the self-test target.
 - `-DMVCI_INSTALL=OFF` — skip install/export rules.
+- `-DMVCI_TRANSPORT=termios|libusb` — Unix serial backend (default `termios`).
+  Use `libusb` for targets without the `ftdi_sio` VCP driver (Android). Ignored
+  on Windows, which always uses FTDI D2XX. See [Android / driverless
+  Linux](#android--driverless-linux-libusb) below.
 
-Both default **ON** for a standalone build and **OFF** when MVCI is pulled in via
-`add_subdirectory()`.
+`MVCI_BUILD_TESTS`/`MVCI_INSTALL` default **ON** for a standalone build and
+**OFF** when MVCI is pulled in via `add_subdirectory()`.
 
 ### Presets (Windows 32- and 64-bit)
 
@@ -158,6 +163,40 @@ opens the adapter by its USB description `"M-VCI"`. Live test:
 
 > The default Windows COM-port / VCP driver is **not** used — the DLL talks to
 > the FTDI chip directly via D2XX, matching the original MVCI32.dll.
+
+### Android / driverless Linux (libusb)
+
+Configure with `-DMVCI_TRANSPORT=libusb` to drive the FTDI chip directly over
+**libusb-1.0** instead of the `ftdi_sio` VCP driver. This is the path for
+**Android**, whose stock kernels ship libusb-capable USB host support but not
+`ftdi_sio`, and for any Linux where you'd rather not bind the kernel VCP driver.
+The backend reimplements what `ftdi_sio`/D2XX do — baud divisor, 8N1, the DTR
+reset pulse, latency timer, RX purge, and stripping the 2 status bytes FTDI
+prepends to every USB packet.
+
+Requires libusb-1.0 headers/library (`libusb-1.0-0-dev` on Debian; on Android,
+build/bundle libusb into the app). fd wrapping needs libusb ≥ 1.0.23, and
+`NO_DEVICE_DISCOVERY` needs ≥ 1.0.24.
+
+```sh
+cmake -S . -B build -DMVCI_TRANSPORT=libusb
+cmake --build build
+```
+
+DES still uses OpenSSL `libcrypto`, so an Android build also needs `libcrypto`
+cross-compiled for the target ABI.
+
+The `pName` passed to `PassThruOpen` (or `MVCI_PORT`) selects the device:
+
+| `pName` value    | Meaning |
+|------------------|---------|
+| `fd:<n>`         | Wrap an already-open file descriptor. **This is the non-rooted Android path**: the Java `UsbManager` grants permission and `UsbDeviceConnection.getFileDescriptor()` yields `<n>`, which you pass in. libusb enumeration is disabled in this mode. |
+| `<vid>:<pid>`    | Open by hex VID:PID, e.g. `0403:6001` (rooted Android / desktop libusb). |
+| empty / `M-VCI` / name | Scan FTDI (VID `0403`) devices and prefer the one whose USB product string matches (default `M-VCI`); fall back to the first FTDI device. |
+
+> On stock, non-rooted Android, libusb cannot enumerate the bus, so only the
+> `fd:<n>` form works — obtain the fd via the Android USB Host API in Java/Kotlin
+> and hand it to `PassThruOpen`.
 
 ---
 

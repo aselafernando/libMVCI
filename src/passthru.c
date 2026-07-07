@@ -74,7 +74,10 @@ static const char *default_port(void *pName)
     if (pName && *(const char *)pName) return (const char *)pName;
     const char *env = getenv("MVCI_PORT");
     if (env) return env;
-  #ifdef __APPLE__
+  #if defined(MVCI_TRANSPORT_LIBUSB)
+    return "M-VCI";        /* libusb: scan FTDI, prefer product "M-VCI" (use
+                              "fd:<n>" on Android — see BUILD.md) */
+  #elif defined(__APPLE__)
     return "/dev/cu.usbserial";                      /* FTDI VCP node (macOS) */
   #else
     return "/dev/ttyUSB0";                           /* ftdi_sio node (Linux) */

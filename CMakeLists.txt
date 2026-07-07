@@ -19,8 +19,49 @@ endif()
 option(MVCI_BUILD_TESTS   "Build the MVCI codec self-test"       ${_mvci_standalone})
 option(MVCI_INSTALL       "Generate MVCI install/export rules"   ${_mvci_standalone})
 
+# Transport backend on Unix-likes: "termios" talks to a /dev/ttyUSB* node via
+# the ftdi_sio VCP driver; "libusb" drives the FTDI chip directly over libusb,
+# for targets (notably Android) whose kernel lacks ftdi_sio. Ignored on Windows,
+# which always uses FTDI D2XX.
+set(MVCI_TRANSPORT "termios" CACHE STRING "Unix transport backend: termios or libusb")
+set_property(CACHE MVCI_TRANSPORT PROPERTY STRINGS termios libusb)
+
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
+
+# --------------------------------------------------------------------------
+# Resolve the libusb transport once (used by the driver and the self-test).
+# Prefer pkg-config (libusb-1.0.pc), fall back to a plain find_library.
+# --------------------------------------------------------------------------
+if(NOT WIN32 AND MVCI_TRANSPORT STREQUAL "libusb")
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(LIBUSB IMPORTED_TARGET libusb-1.0)
+    endif()
+    if(NOT LIBUSB_FOUND)
+        find_path(LIBUSB_INCLUDE_DIR libusb.h PATH_SUFFIXES libusb-1.0)
+        find_library(LIBUSB_LIBRARY NAMES usb-1.0 usb)
+        if(NOT LIBUSB_INCLUDE_DIR OR NOT LIBUSB_LIBRARY)
+            message(FATAL_ERROR
+                "MVCI_TRANSPORT=libusb but libusb-1.0 was not found. Install it "
+                "(e.g. libusb-1.0-0-dev) or point CMake at it, or build with "
+                "-DMVCI_TRANSPORT=termios.")
+        endif()
+    endif()
+endif()
+
+# Apply the selected Unix transport (compile define + libs) to a target.
+function(mvci_apply_transport tgt)
+    if(NOT WIN32 AND MVCI_TRANSPORT STREQUAL "libusb")
+        target_compile_definitions(${tgt} PRIVATE MVCI_TRANSPORT_LIBUSB)
+        if(TARGET PkgConfig::LIBUSB)
+            target_link_libraries(${tgt} PRIVATE PkgConfig::LIBUSB)
+        else()
+            target_include_directories(${tgt} PRIVATE ${LIBUSB_INCLUDE_DIR})
+            target_link_libraries(${tgt} PRIVATE ${LIBUSB_LIBRARY})
+        endif()
+    endif()
+endfunction()
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "" FORCE)
@@ -114,6 +155,8 @@ else()  # Linux / other Unix
     target_link_libraries(MVCI PRIVATE OpenSSL::Crypto Threads::Threads)
 endif()
 
+mvci_apply_transport(MVCI)
+
 set_target_properties(MVCI PROPERTIES
     C_VISIBILITY_PRESET hidden
     EXPORT_NAME libmvci               # -> libMVCI::libmvci when exported
@@ -141,6 +184,7 @@ if(MVCI_BUILD_TESTS)
     else()
         target_link_libraries(mvci_test PRIVATE OpenSSL::Crypto Threads::Threads)
     endif()
+    mvci_apply_transport(mvci_test)
 
     # No-argument run is the hardware-free codec self-test.
     add_test(NAME mvci_selftest COMMAND mvci_test)
