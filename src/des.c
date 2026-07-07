@@ -96,6 +96,13 @@ void mvci_des_decrypt(const uint8_t key[8], uint8_t *buf, size_t nblocks)
 /* ====================================================================== */
 #else
 /* ------------------------------- OpenSSL ----------------------------- */
+/* We deliberately use the low-level DES_* API. OpenSSL 3.0 deprecates it, but
+ * it stays functional and self-contained in libcrypto. The EVP alternative is
+ * worse here: single DES-ECB was moved to the *legacy* provider in 3.0, so
+ * EVP_CIPHER_fetch("DES-ECB") returns NULL unless the app loads the legacy
+ * provider — trading a build warning for a runtime failure. OpenSSL's own
+ * OPENSSL_SUPPRESS_DEPRECATED silences the deprecation notes for this file. */
+#define OPENSSL_SUPPRESS_DEPRECATED
 #include <openssl/des.h>
 
 void mvci_des_encrypt(const uint8_t key[8], uint8_t *buf, size_t nblocks)
