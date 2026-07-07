@@ -39,13 +39,16 @@ if(NOT WIN32 AND MVCI_TRANSPORT STREQUAL "libusb")
         pkg_check_modules(LIBUSB IMPORTED_TARGET libusb-1.0)
     endif()
     if(NOT LIBUSB_FOUND)
+        # NAMES is usb-1.0 only — NOT plain "usb", which is the incompatible
+        # legacy libusb-0.1 (the libusb-dev package). We need libusb-1.0-0-dev.
         find_path(LIBUSB_INCLUDE_DIR libusb.h PATH_SUFFIXES libusb-1.0)
-        find_library(LIBUSB_LIBRARY NAMES usb-1.0 usb)
+        find_library(LIBUSB_LIBRARY NAMES usb-1.0)
         if(NOT LIBUSB_INCLUDE_DIR OR NOT LIBUSB_LIBRARY)
             message(FATAL_ERROR
-                "MVCI_TRANSPORT=libusb but libusb-1.0 was not found. Install it "
-                "(e.g. libusb-1.0-0-dev) or point CMake at it, or build with "
-                "-DMVCI_TRANSPORT=termios.")
+                "MVCI_TRANSPORT=libusb but libusb-1.0 was not found. Install the "
+                "libusb-1.0 dev package: 'sudo apt install libusb-1.0-0-dev' "
+                "(NOT 'libusb-dev', which is the incompatible legacy libusb-0.1). "
+                "Or point CMake at it, or build with -DMVCI_TRANSPORT=termios.")
         endif()
     endif()
 endif()
