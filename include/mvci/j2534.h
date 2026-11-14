@@ -160,30 +160,38 @@ typedef struct {
     uint8_t  *BytePtr;
 } SBYTE_ARRAY;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* J2534 API */
-J2534_EXPORT long J2534_API PassThruOpen(void *pName, unsigned long *pDeviceID);
-J2534_EXPORT long J2534_API PassThruClose(unsigned long DeviceID);
-J2534_EXPORT long J2534_API PassThruConnect(unsigned long DeviceID, unsigned long ProtocolID,
-                     unsigned long Flags, unsigned long BaudRate,
-                     unsigned long *pChannelID);
-J2534_EXPORT long J2534_API PassThruDisconnect(unsigned long ChannelID);
-J2534_EXPORT long J2534_API PassThruReadMsgs(unsigned long ChannelID, PASSTHRU_MSG *pMsg,
-                      unsigned long *pNumMsgs, unsigned long Timeout);
-J2534_EXPORT long J2534_API PassThruWriteMsgs(unsigned long ChannelID, PASSTHRU_MSG *pMsg,
-                       unsigned long *pNumMsgs, unsigned long TimeInterval);
-J2534_EXPORT long J2534_API PassThruStartPeriodicMsg(unsigned long ChannelID, PASSTHRU_MSG *pMsg,
-                               unsigned long *pMsgID, unsigned long TimeInterval);
-J2534_EXPORT long J2534_API PassThruStopPeriodicMsg(unsigned long ChannelID, unsigned long MsgID);
-J2534_EXPORT long J2534_API PassThruStartMsgFilter(unsigned long ChannelID, unsigned long FilterType,
+J2534_EXPORT long J2534_API PassThruOpen(void *pName, uint32_t *pDeviceID);
+J2534_EXPORT long J2534_API PassThruClose(uint32_t DeviceID);
+J2534_EXPORT long J2534_API PassThruConnect(uint32_t DeviceID, uint32_t ProtocolID,
+                     uint32_t Flags, uint32_t BaudRate,
+                     uint32_t *pChannelID);
+J2534_EXPORT long J2534_API PassThruDisconnect(uint32_t ChannelID);
+J2534_EXPORT long J2534_API PassThruReadMsgs(uint32_t ChannelID, PASSTHRU_MSG *pMsg,
+                      uint32_t *pNumMsgs, uint32_t Timeout);
+J2534_EXPORT long J2534_API PassThruWriteMsgs(uint32_t ChannelID, PASSTHRU_MSG *pMsg,
+                       uint32_t *pNumMsgs, uint32_t TimeInterval);
+J2534_EXPORT long J2534_API PassThruStartPeriodicMsg(uint32_t ChannelID, PASSTHRU_MSG *pMsg,
+                               uint32_t *pMsgID, uint32_t TimeInterval);
+J2534_EXPORT long J2534_API PassThruStopPeriodicMsg(uint32_t ChannelID, uint32_t MsgID);
+J2534_EXPORT long J2534_API PassThruStartMsgFilter(uint32_t ChannelID, uint32_t FilterType,
                              PASSTHRU_MSG *pMaskMsg, PASSTHRU_MSG *pPatternMsg,
-                             PASSTHRU_MSG *pFlowControlMsg, unsigned long *pFilterID);
-J2534_EXPORT long J2534_API PassThruStopMsgFilter(unsigned long ChannelID, unsigned long FilterID);
-J2534_EXPORT long J2534_API PassThruSetProgrammingVoltage(unsigned long DeviceID, unsigned long PinNumber,
-                                    unsigned long Voltage);
-J2534_EXPORT long J2534_API PassThruReadVersion(unsigned long DeviceID, char *pFirmwareVersion,
+                             PASSTHRU_MSG *pFlowControlMsg, uint32_t *pFilterID);
+J2534_EXPORT long J2534_API PassThruStopMsgFilter(uint32_t ChannelID, uint32_t FilterID);
+J2534_EXPORT long J2534_API PassThruSetProgrammingVoltage(uint32_t DeviceID, uint32_t PinNumber,
+                                    uint32_t Voltage);
+J2534_EXPORT long J2534_API PassThruReadVersion(uint32_t DeviceID, char *pFirmwareVersion,
                           char *pDllVersion, char *pApiVersion);
 J2534_EXPORT long J2534_API PassThruGetLastError(char *pErrorDescription);
-J2534_EXPORT long J2534_API PassThruIoctl(unsigned long ChannelID, unsigned long IoctlID,
+J2534_EXPORT long J2534_API PassThruIoctl(uint32_t ChannelID, uint32_t IoctlID,
                    void *pInput, void *pOutput);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* J2534_H */
